@@ -2,378 +2,59 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>3D オブジェクト ビューアー</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>腹部臓器 3Dモデル</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
             background: #1a1a1a;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            height: 100dvh; /* iPhone対応 */
-            overflow: hidden;
+            font-family: Arial, sans-serif;
         }
-        
-        .header {
+        header {
             background: #2a2a2a;
-            padding: 12px 15px;
+            color: #fff;
+            padding: 12px 16px;
+            font-size: 15px;
             border-bottom: 1px solid #444;
             flex-shrink: 0;
         }
-        
-        .header h1 {
-            color: #fff;
-            font-size: 16px;
-        }
-        
-        .controls {
-            padding: 10px 15px;
-            background: #2a2a2a;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: wrap;
-            flex-shrink: 0;
-            overflow-x: auto;
-        }
-        
-        .file-input-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-        }
-        
-        .file-input-wrapper input[type="file"] {
-            position: absolute;
-            left: -9999px;
-        }
-        
-        button {
-            background: #0066cc;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: background 0.3s;
-            white-space: nowrap;
-            flex-shrink: 0;
-            -webkit-appearance: none;
-            appearance: none;
-        }
-        
-        button:active {
-            background: #0052a3;
-        }
-        
-        .file-label {
-            background: #0066cc;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-            display: inline-block;
-            transition: background 0.3s;
-            white-space: nowrap;
-            flex-shrink: 0;
-            -webkit-appearance: none;
-            appearance: none;
-        }
-        
-        .file-label:active {
-            background: #0052a3;
-        }
-        
-        .filename {
-            color: #aaa;
-            font-size: 12px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 150px;
-            flex-shrink: 1;
-        }
-        
-        .info {
-            color: #aaa;
-            font-size: 11px;
-            margin-left: auto;
-            flex-shrink: 0;
-        }
-        
-        #viewer {
-            flex: 1;
+        model-viewer {
             width: 100%;
-            background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
-            overflow: hidden;
+            flex: 1;
+            background-color: #2a2a2a;
+            --progress-bar-color: #0066cc;
         }
-        
-        .error {
-            background: #c41e3a;
-            color: white;
-            padding: 10px 15px;
-            margin: 5px 15px;
-            border-radius: 4px;
+        .hint {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.45);
             font-size: 12px;
-            flex-shrink: 0;
-        }
-        
-        /* モバイル用調整 */
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 14px;
-            }
-            
-            .controls {
-                padding: 8px 10px;
-                gap: 6px;
-            }
-            
-            button, .file-label {
-                padding: 6px 12px;
-                font-size: 12px;
-            }
-            
-            .filename {
-                max-width: 100px;
-                font-size: 11px;
-            }
-            
-            .info {
-                font-size: 10px;
-            }
-        }
-        
-        /* iPhone用 */
-        @supports (padding: max(0px)) {
-            body {
-                padding-left: max(0px, env(safe-area-inset-left));
-                padding-right: max(0px, env(safe-area-inset-right));
-                padding-top: max(0px, env(safe-area-inset-top));
-                padding-bottom: max(0px, env(safe-area-inset-bottom));
-            }
+            pointer-events: none;
+            white-space: nowrap;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>3D オブジェクト ビューアー</h1>
-    </div>
-    
-    <div class="controls">
-        <label class="file-label">
-            ファイル選択
-            <input type="file" id="fileInput" accept=".glb">
-        </label>
-        <span class="filename" id="filename"></span>
-        <button id="resetBtn">リセット</button>
-        <span class="info" id="touchInfo">ドラッグ: 回転 | ピンチ: ズーム</span>
-    </div>
-    
-    <div id="error"></div>
-    <div id="viewer"></div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@r128/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@r128/examples/js/loaders/GLTFLoader.js"></script>
-
-    <script>
-        let scene, camera, renderer, controls, currentModel;
-        let initialCameraZ = 100;
-
-        function init() {
-            const container = document.getElementById('viewer');
-            
-            // シーンの設定
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x2a2a2a);
-            
-            // カメラの設定
-            camera = new THREE.PerspectiveCamera(
-                75,
-                container.clientWidth / container.clientHeight,
-                0.1,
-                1000
-            );
-            camera.position.z = initialCameraZ;
-            
-            // レンダラーの設定
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.outputColorSpace = THREE.SRGBColorSpace;
-            container.appendChild(renderer.domElement);
-            
-            // ライトの設定
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-            
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(100, 100, 50);
-            scene.add(directionalLight);
-            
-            // コントロールの設定
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.autoRotate = false;
-            controls.enablePan = true;
-            controls.enableZoom = true;
-            controls.autoRotateSpeed = 0;
-            
-            // タッチデバイスの検出
-            const isTouchDevice = () => {
-                return (('ontouchstart' in window) ||
-                        (navigator.maxTouchPoints > 0) ||
-                        (navigator.msMaxTouchPoints > 0));
-            };
-            
-            // ピンチズーム対応
-            let initialDistance = 0;
-            let initialZoom = 1;
-            
-            renderer.domElement.addEventListener('touchmove', (e) => {
-                if (e.touches.length === 2) {
-                    e.preventDefault();
-                    const touch1 = e.touches[0];
-                    const touch2 = e.touches[1];
-                    const distance = Math.hypot(
-                        touch1.clientX - touch2.clientX,
-                        touch1.clientY - touch2.clientY
-                    );
-                    
-                    if (initialDistance === 0) {
-                        initialDistance = distance;
-                        initialZoom = camera.zoom;
-                    } else {
-                        const scale = initialDistance / distance;
-                        camera.zoom = Math.max(0.1, initialZoom * scale);
-                        camera.updateProjectionMatrix();
-                    }
-                }
-            }, { passive: false });
-            
-            renderer.domElement.addEventListener('touchend', () => {
-                initialDistance = 0;
-            });
-            
-            // イベントリスナー
-            window.addEventListener('resize', onWindowResize);
-            document.getElementById('fileInput').addEventListener('change', onFileSelected);
-            document.getElementById('resetBtn').addEventListener('click', resetView);
-            
-            // アニメーションループ
-            animate();
-        }
-
-        function onFileSelected(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const filename = file.name;
-            document.getElementById('filename').textContent = filename;
-            document.getElementById('error').innerHTML = '';
-            
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    loadModel(e.target.result, filename);
-                } catch (error) {
-                    showError('ファイル読み込みエラー: ' + error.message);
-                }
-            };
-            reader.onerror = () => {
-                showError('ファイル読み込みに失敗しました');
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function loadModel(arrayBuffer, filename) {
-            // 前のモデルを削除
-            if (currentModel) {
-                scene.remove(currentModel);
-            }
-            
-            loadGLTF(arrayBuffer);
-        }
-
-        function loadGLTF(arrayBuffer) {
-            const loader = new THREE.GLTFLoader();
-            loader.parse(arrayBuffer, '', (gltf) => {
-                currentModel = gltf.scene;
-                scene.add(currentModel);
-                centerAndScaleModel(currentModel);
-                document.getElementById('error').innerHTML = '';
-            }, undefined, (error) => {
-                showError('読み込みエラー: ' + error.message);
-            });
-        }
-
-        function centerAndScaleModel(model) {
-            // バウンディングボックスの計算
-            const box = new THREE.Box3().setFromObject(model);
-            const center = box.getCenter(new THREE.Vector3());
-            const size = box.getSize(new THREE.Vector3());
-            
-            // モデルを中央に配置
-            model.position.sub(center);
-            
-            // カメラの位置とコントローラーをリセット
-            const maxDim = Math.max(size.x, size.y, size.z);
-            const fov = camera.fov * (Math.PI / 180);
-            let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
-            
-            cameraZ *= 1.5;
-            camera.position.z = cameraZ;
-            camera.zoom = 1;
-            camera.updateProjectionMatrix();
-            camera.lookAt(0, 0, 0);
-            
-            controls.target.set(0, 0, 0);
-            controls.update();
-        }
-
-        function resetView() {
-            if (currentModel) {
-                centerAndScaleModel(currentModel);
-            }
-        }
-
-        function showError(message) {
-            document.getElementById('error').innerHTML = 
-                '<div class="error">' + message + '</div>';
-        }
-
-        function onWindowResize() {
-            const container = document.getElementById('viewer');
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-
-        // 初期化
-        init();
-    </script>
+    <header>腹部臓器 3Dモデル</header>
+    <model-viewer
+        src="./abdominal_organ.glb"
+        alt="腹部臓器の3Dモデル"
+        camera-controls
+        auto-rotate
+        auto-rotate-delay="2000"
+        rotation-per-second="20deg"
+        shadow-intensity="1"
+        ar
+        ar-modes="webxr scene-viewer quick-look"
+        style="position: relative;"
+    >
+        <span class="hint">ドラッグ: 回転 ／ ピンチ: ズーム</span>
+    </model-viewer>
 </body>
 </html>
